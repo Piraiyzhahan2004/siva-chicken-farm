@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIVA CHICKEN FARM - Expense Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+    header {
+      background-color: #3b3b3b;
+      color: white;
+      text-align: center;
+      padding: 20px 10px;
+    }
+    .container {
+      padding: 20px;
+    }
+    .card {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card h2 {
+      margin-top: 0;
+    }
+    .btn {
+      display: inline-block;
+      padding: 8px 14px;
+      margin: 5px 2px;
+      background-color: #3b3b3b;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      cursor: pointer;
+      border: none;
+      font-size: 14px;
+    }
+    .btn:hover {
+      background-color: #2c2c2c;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    input, select {
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #eee;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 14px;
+      color: #666;
+    }
+    .filters {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SIVA CHICKEN FARM</h1>
+    <p>Personal Expense Tracker + Inventory</p>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <h2>Today's Summary</h2>
+      <p><strong>Income:</strong> Rs. <span id="totalIncome">0.00</span></p>
+      <p><strong>Expenses:</strong> Rs. <span id="totalExpense">0.00</span></p>
+      <p><strong>Profit:</strong> Rs. <span id="totalProfit">0.00</span></p>
+    </div>
+
+    <div class="card">
+      <h2>Inventory Stock</h2>
+      <form id="stockForm">
+        <select id="chickenType">
+          <option value="Broiler">Broiler</option>
+          <option value="Kalbird">Kalbird</option>
+          <option value="Parents">Parents</option>
+        </select>
+        <input type="number" id="stockQty" placeholder="Quantity" required />
+        <button class="btn" type="submit">Add / Update Stock</button>
+      </form>
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Quantity</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="stockBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Add Expense</h2>
+      <form id="expenseForm">
+        <input type="text" id="expenseDesc" placeholder="Expense Name (e.g., Feed, Electricity)" required />
+        <input type="number" id="expenseAmount" placeholder="Amount (Rs.)" required />
+        <input type="date" id="expenseDate" required />
+        <button class="btn" type="submit">Save Expense</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Add Income</h2>
+      <form id="incomeForm">
+        <input type="text" id="incomeDesc" placeholder="Income Source (e.g., Chicken Sale)" required />
+        <input type="number" id="incomeAmount" placeholder="Amount (Rs.)" required />
+        <input type="date" id="incomeDate" required />
+        <button class="btn" type="submit">Save Income</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Reports</h2>
+      <div class="filters">
+        <select id="filterType">
+          <option value="All">All</option>
+          <option value="Income">Income</option>
+          <option value="Expense">Expense</option>
+        </select>
+        <input type="date" id="filterDate" />
+        <button class="btn" onclick="applyFilters()">Apply Filter</button>
+        <button class="btn" onclick="clearFilters()">Clear Filter</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Amount (Rs.)</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="reportBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    📱 Open on mobile: Save this page to home screen<br/>
+    🌐 Web link: <a href="#">yourdomain.com/expense-app</a>
+  </div>
+
+  <script>
+    let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+    let stock = JSON.parse(localStorage.getItem('stock')) || {};
+
+    function saveToStorage() {
+      localStorage.setItem('transactions', JSON.stringify(transactions));
+      localStorage.setItem('stock', JSON.stringify(stock));
+    }
+
+    function updateSummary() {
+      const income = transactions.filter(t => t.type === 'Income').reduce((acc, t) => acc + t.amount, 0);
+      const expense = transactions.filter(t => t.type === 'Expense').reduce((acc, t) => acc + t.amount, 0);
+      document.getElementById('totalIncome').textContent = income.toFixed(2);
+      document.getElementById('totalExpense').textContent = expense.toFixed(2);
+      document.getElementById('totalProfit').textContent = (income - expense).toFixed(2);
+    }
+
+    function addRow(index, type, desc, amount, date) {
+      const tbody = document.getElementById('reportBody');
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${date}</td>
+        <td>${type}</td>
+        <td>${desc}</td>
+        <td>${amount.toFixed(2)}</td>
+        <td>
+          <button class="btn" onclick="editEntry(${index})">Edit</button>
+          <button class="btn" onclick="deleteEntry(${index})">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    }
+
+    function renderTransactions(filtered = transactions) {
+      document.getElementById('reportBody').innerHTML = '';
+      filtered.forEach((t, index) => addRow(index, t.type, t.desc, t.amount, t.date));
+      updateSummary();
+    }
+
+    function applyFilters() {
+      const type = document.getElementById('filterType').value;
+      const date = document.getElementById('filterDate').value;
+      let filtered = transactions;
+
+      if (type !== 'All') {
+        filtered = filtered.filter(t => t.type === type);
+      }
+
+      if (date) {
+        filtered = filtered.filter(t => t.date === date);
+      }
+
+      renderTransactions(filtered);
+    }
+
+    function clearFilters() {
+      document.getElementById('filterType').value = 'All';
+      document.getElementById('filterDate').value = '';
+      renderTransactions();
+    }
+
+    function renderStock() {
+      const tbody = document.getElementById('stockBody');
+      tbody.innerHTML = '';
+      for (const type in stock) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${type}</td>
+          <td>${stock[type]}</td>
+          <td>
+            <button class="btn" onclick="editStock('${type}')">Edit</button>
+            <button class="btn" onclick="deleteStock('${type}')">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      }
+    }
+
+    function deleteEntry(index) {
+      if (confirm('Delete this entry?')) {
+        transactions.splice(index, 1);
+        saveToStorage();
+        renderTransactions();
+      }
+    }
+
+    function editEntry(index) {
+      const entry = transactions[index];
+      const desc = prompt('Update description:', entry.desc);
+      const amount = prompt('Update amount (Rs.):', entry.amount);
+      const date = prompt('Update date (yyyy-mm-dd):', entry.date);
+
+      if (desc && amount && date) {
+        transactions[index] = { ...entry, desc, amount: parseFloat(amount), date };
+        saveToStorage();
+        renderTransactions();
+      }
+    }
+
+    function editStock(type) {
+      const qty = prompt(`Update quantity for ${type}:`, stock[type]);
+      if (qty !== null && !isNaN(qty)) {
+        stock[type] = parseInt(qty);
+        saveToStorage();
+        renderStock();
+      }
+    }
+
+    function deleteStock(type) {
+      if (confirm(`Delete stock record for ${type}?`)) {
+        delete stock[type];
+        saveToStorage();
+        renderStock();
+      }
+    }
+
+    document.getElementById('expenseForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const desc = document.getElementById('expenseDesc').value;
+      const amount = parseFloat(document.getElementById('expenseAmount').value);
+      const date = document.getElementById('expenseDate').value;
+      transactions.push({ type: 'Expense', desc, amount, date });
+      saveToStorage();
+      renderTransactions();
+      this.reset();
+    });
+
+    document.getElementById('incomeForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const desc = document.getElementById('incomeDesc').value;
+      const amount = parseFloat(document.getElementById('incomeAmount').value);
+      const date = document.getElementById('incomeDate').value;
+      transactions.push({ type: 'Income', desc, amount, date });
+      saveToStorage();
+      renderTransactions();
+      this.reset();
+    });
+
+    document.getElementById('stockForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const type = document.getElementById('chickenType').value;
+      const qty = parseInt(document.getElementById('stockQty').value);
+      if (!isNaN(qty)) {
+        stock[type] = (stock[type] || 0) + qty;
+        saveToStorage();
+        renderStock();
+        this.reset();
+      }
+    });
+
+    // Initial render
+    renderTransactions();
+    renderStock();
+  </script>
+</body>
+</html>
